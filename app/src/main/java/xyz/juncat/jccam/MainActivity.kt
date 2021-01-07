@@ -54,7 +54,7 @@ class MainActivity : AppCompatActivity() {
         cameraView.callback = object : CameraGLSurfaceView.Callback {
             override fun onSurfaceCreated(surfaceTexture: SurfaceTexture) {
                 Log.i(TAG, "onSurfaceCreated: ")
-                surfaceTexture.setDefaultBufferSize(1080, 1920)
+//                surfaceTexture.setDefaultBufferSize(1080, 1920)
                 cameraDevice?.let {
                     previewCamera(it, surfaceTexture)
                 }
