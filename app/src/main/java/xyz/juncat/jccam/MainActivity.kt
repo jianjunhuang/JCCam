@@ -13,19 +13,24 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import android.util.Size
 import android.view.Surface
 import android.widget.Button
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import com.example.android.media.CameraGLSurfaceView
+import xyz.juncat.jccam.camera.CameraGLSurfaceView
+import java.util.*
 import java.util.concurrent.Executors
+import kotlin.collections.ArrayList
+
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var cameraView: CameraGLSurfaceView
     private lateinit var btnCapture: Button
     private var cameraDevice: CameraDevice? = null
+    private var previewSize = Size(1080, 1920)
 
     //1) get camera manager
     private val cameraManager by lazy(LazyThreadSafetyMode.NONE) {
@@ -50,11 +55,11 @@ class MainActivity : AppCompatActivity() {
 
         }
         workerThreader.start()
-        initCamera()
         cameraView.callback = object : CameraGLSurfaceView.Callback {
             override fun onSurfaceCreated(surfaceTexture: SurfaceTexture) {
                 Log.i(TAG, "onSurfaceCreated: ")
 //                surfaceTexture.setDefaultBufferSize(1080, 1920)
+                initCamera()
                 cameraDevice?.let {
                     previewCamera(it, surfaceTexture)
                 }
@@ -85,8 +90,17 @@ class MainActivity : AppCompatActivity() {
         }
         for (cid in cameraManager.cameraIdList) {
             val params = cameraManager.getCameraCharacteristics(cid)
-            if (params != null && params.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT) {
+            if (params != null && params.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK) {
                 openCamera(cid)
+                params.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.let { config ->
+                    config.getOutputSizes(SurfaceTexture::class.java)
+                }?.let { sizeArray ->
+                    Log.i(TAG, "initCamera: ${cameraView.width}, ${cameraView.height}")
+                    previewSize = getOptimalSize(sizeArray, cameraView.width, cameraView.height)
+                    sizeArray.forEach {
+                        Log.i(TAG, "Size w:h = ${it.width}:${it.height} ")
+                    }
+                }
                 break
             }
         }
@@ -97,8 +111,8 @@ class MainActivity : AppCompatActivity() {
         //5)
         val previewRequest = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
         val surface = Surface(surfaceTexture)
-        surfaceTexture.setDefaultBufferSize(cameraView.width, cameraView.height)
-        Log.i(TAG, "previewCamera: ${cameraView.width},${cameraView.height}")
+        surfaceTexture.setDefaultBufferSize(previewSize.height, previewSize.width)
+        Log.i(TAG, "previewCamera: ${previewSize.width},${previewSize.height}")
         previewRequest.addTarget(surface)
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
@@ -187,6 +201,25 @@ class MainActivity : AppCompatActivity() {
             }
 
         }, workerThreader.handler)
+    }
+
+    //选择sizeMap中大于并且最接近width和height的size
+    private fun getOptimalSize(sizeMap: Array<Size>, width: Int, height: Int): Size {
+        val sizeList: MutableList<Size> = ArrayList()
+        for (option in sizeMap) {
+            if (width > height) {
+                if (option.width > width && option.height > height) {
+                    sizeList.add(option)
+                }
+            } else {
+                if (option.width > height && option.height > width) {
+                    sizeList.add(option)
+                }
+            }
+        }
+        return if (sizeList.size > 0) {
+            Collections.min(sizeList) { lhs, rhs -> java.lang.Long.signum((lhs.width * lhs.height - rhs.width * rhs.height).toLong()) }
+        } else sizeMap[0]
     }
 
     companion object {

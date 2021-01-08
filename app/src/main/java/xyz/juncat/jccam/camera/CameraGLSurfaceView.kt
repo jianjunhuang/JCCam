@@ -1,4 +1,4 @@
-package com.example.android.media
+package xyz.juncat.jccam.camera
 
 import android.content.Context
 import android.graphics.SurfaceTexture
@@ -6,7 +6,7 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
-import xyz.juncat.jccam.camera.CameraDrawer
+import android.util.Log
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
@@ -16,7 +16,7 @@ class CameraGLSurfaceView : GLSurfaceView, GLSurfaceView.Renderer {
     private var textureId: Int = -1
     var surfaceTexture: SurfaceTexture? = null
         private set
-    var callback: CameraGLSurfaceView.Callback? = null
+    var callback: Callback? = null
     private var cameraDrawer: CameraDrawer? = null
 
     constructor(context: Context) : super(context) {
@@ -46,6 +46,7 @@ class CameraGLSurfaceView : GLSurfaceView, GLSurfaceView.Renderer {
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        Log.i(TAG, "onSurfaceChanged: width:$width, height:$height")
         GLES20.glViewport(0, 0, width, height)
     }
 
@@ -53,7 +54,7 @@ class CameraGLSurfaceView : GLSurfaceView, GLSurfaceView.Renderer {
         GLES20.glClearColor(1f, 1f, 1f, 1f)
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         surfaceTexture?.updateTexImage()
-        cameraDrawer?.draw(textureId, true)
+        cameraDrawer?.draw(textureId, false)
     }
 
     private fun getExternalOESTextureID(): Int {
@@ -86,5 +87,9 @@ class CameraGLSurfaceView : GLSurfaceView, GLSurfaceView.Renderer {
     interface Callback {
         fun onSurfaceCreated(surfaceTexture: SurfaceTexture)
         fun onSurfaceDestroy()
+    }
+
+    companion object{
+        private const val TAG = "CameraGLSurfaceView"
     }
 }
